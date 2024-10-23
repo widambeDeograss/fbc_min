@@ -63,7 +63,9 @@ const invokeTransaction = async (channelName, chaincodeName, fcn, args, username
             case 'ABACTest':
             case 'CreateContract':
             case "CreateCar":
+                console.log("=============")
                 result = await contract.submitTransaction(fcn, args[0]);
+                console.log("=============", result)
                 result = {txid: result.toString()}
                 break;
             case "UpdateCarOwner":
