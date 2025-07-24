@@ -79,7 +79,7 @@ services:
     networks:
       - test
     volumes:
-      - /home/dw/Documents/FabricNetwork-2.x/artifacts/channel/genesis.block:/var/hyperledger/orderer/genesis.block
+      - ./channel/genesis.block:/var/hyperledger/orderer/genesis.block
       - ./channel/crypto-config/ordererOrganizations/example.com/orderers/orderer2.fabcar.example.com/msp:/var/hyperledger/orderer/msp
       - ./channel/crypto-config/ordererOrganizations/example.com/orderers/orderer2.fabcar.example.com/tls:/var/hyperledger/orderer/tls
       # - /var/pavan/orderer2:/var/hyperledger/production
@@ -118,7 +118,7 @@ services:
     networks:
       - test
     volumes:
-      - /home/dw/Documents/FabricNetwork-2.x/artifacts/channel/genesis.block:/var/hyperledger/orderer/genesis.block
+      - ./channel/genesis.block:/var/hyperledger/orderer/genesis.block
       - ./channel/crypto-config/ordererOrganizations/example.com/orderers/orderer3.fabcar.example.com/msp:/var/hyperledger/orderer/msp
       - ./channel/crypto-config/ordererOrganizations/example.com/orderers/orderer3.fabcar.example.com/tls:/var/hyperledger/orderer/tls
       # - /var/pavan/orderer3:/var/hyperledger/production

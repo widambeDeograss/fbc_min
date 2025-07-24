@@ -191,6 +191,7 @@ app.post('/channels/:channelName/chaincodes/:chaincodeName', async function (req
         var peers = req.body.peers;
         var chaincodeName = req.params.chaincodeName;
         var channelName = req.params.channelName;
+        let args0 = req.query.args;
         var fcn = req.body.fcn;
         var args = req.body.args;
         var transient = req.body.transient;
@@ -214,9 +215,16 @@ app.post('/channels/:channelName/chaincodes/:chaincodeName', async function (req
         if (!args) {
             res.json(getErrorMessage('\'args\''));
             return;
+        }if (!args0) {
+            res.json(getErrorMessage('\'args\''));
+            return;
         }
+        console.log('args==========', args0);
+        args0 = args0.replace(/'/g, '"');
+        args0 = JSON.parse(args0);
+        logger.debug(args0);
 
-        let message = await invoke.invokeTransaction(channelName, chaincodeName, fcn, args, req.username, req.orgname, transient);
+        let message = await invoke.invokeTransaction(channelName, chaincodeName, fcn, args, req.username, req.orgname, transient,args0);
         console.log(`message result is : ${message}`)
 
         const response_payload = {
@@ -346,4 +354,92 @@ app.get('/qscc/channels/:channelName/chaincodes/:chaincodeName', async function 
         }
         res.send(response_payload)
     }
+});
+
+
+// Register a new birth record
+app.post('/api/register-birth', async function (req, res) {
+  try {
+    logger.debug('==================== REGISTER BIRTH RECORD ==================');
+
+    const form = req.body;
+
+    // Construct record object as required by your chaincode
+    const record = {
+      RecordID: `BR${Date.now()}`,
+      Child: {
+        FirstName: form.childFirstName,
+        MiddleName: form.childMiddleName,
+        LastName: form.childLastName,
+        DateOfBirth: form.dateOfBirth || new Date().toISOString().split('T')[0],
+        TimeOfBirth: form.timeOfBirth || '12:00',
+        Gender: form.gender,
+        WeightGrams: parseInt(form.weight),
+      },
+      Parents: {
+        MotherFirstName: form.motherFirstName,
+        MotherLastName: form.motherLastName,
+        MotherID: form.motherIdNumber,
+        FatherFirstName: form.fatherFirstName,
+        FatherLastName: form.fatherLastName,
+        FatherID: form.fatherIdNumber,
+      },
+      Contact: {
+        Address: form.address,
+        City: form.city,
+        State: form.state,
+        PostalCode: form.postalCode,
+        PhoneNumber: form.phoneNumber,
+        Email: form.email,
+      },
+      Medical: {
+        DeliveryType: form.deliveryType,
+        HospitalRecordNo: form.hospitalNumber,
+        Physician: form.attendingPhysician,
+        MedicalNotes: form.medicalNotes,
+      },
+    };
+
+    const recordJSON = JSON.stringify(record);
+
+
+    console.log(recordJSON,"===========================");
+    
+
+    // Prepare arguments for invoke function
+    const peers = ["peer0.org1.example.com"]; // Adjust if you want multiple peers
+    const channelName = "fabcarchannel";
+    const chaincodeName = "fabcar";
+    const fcn = "CreateBirthRecord";
+    const args = [recordJSON];
+
+    
+
+    // Use your existing invoke helper
+    const message = await invoke.invokeTransaction(
+      channelName,
+      chaincodeName,
+      fcn,
+      args,
+      req.username,
+      req.orgname
+    );
+
+    const response_payload = {
+      result: message,
+      txId: message,
+      error: null,
+      errorData: null,
+    };
+    res.send(response_payload);
+
+  } catch (error) {
+    logger.error(error);
+    const response_payload = {
+      result: null,
+      error: error.name,
+      errorData: error.message,
+    };
+    res.send(response_payload);
+  }
 });

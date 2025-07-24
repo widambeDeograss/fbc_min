@@ -85,15 +85,26 @@ installChaincode() {
 }
 
 # installChaincode
-
 queryInstalled() {
     setGlobalsForPeer0Org1
+
+    echo "🔍 Querying installed chaincode on peer0.org1..."
+
     peer lifecycle chaincode queryinstalled >&log.txt
+
     cat log.txt
+
     PACKAGE_ID=$(sed -n "/${CC_NAME}_${VERSION}/{s/^Package ID: //; s/, Label:.*$//; p;}" log.txt)
-    echo PackageID is ${PACKAGE_ID}
-    echo "===================== Query installed successful on peer0.org1 on channel ===================== "
+
+    if [ -z "$PACKAGE_ID" ]; then
+        echo "❌ ERROR: Could not extract PACKAGE_ID from log.txt. Make sure the chaincode is installed and the label matches."
+        exit 1
+    fi
+
+    echo "📦 PackageID is: ${PACKAGE_ID}"
+    echo "✅ Chaincode query installed successfully on peer0.org1"
 }
+
 
 # queryInstalled
 
@@ -102,33 +113,36 @@ queryInstalled() {
 
 approveForMyOrg1() {
     setGlobalsForPeer0Org1
-    # set -x
-    peer lifecycle chaincode approveformyorg -o localhost:3050 \
-        --ordererTLSHostnameOverride orderer.fabcar.example.com --tls \
-        --cafile $ORDERER_CA --channelID $CHANNEL_NAME --name ${CC_NAME} --version ${VERSION} \
-        --init-required --package-id ${PACKAGE_ID} \
-        --sequence ${SEQUENCE}
-    # set +x
+    peer lifecycle chaincode approveformyorg \
+        -o localhost:3050 \
+        --ordererTLSHostnameOverride orderer.fabcar.example.com \
+        --tls \
+        --cafile $ORDERER_CA \
+        --channelID $CHANNEL_NAME \
+        --name ${CC_NAME} \
+        --version ${VERSION} \
+        --package-id ${PACKAGE_ID} \
+        --sequence ${SEQUENCE} \
+        --init-required \
+        --peerAddresses localhost:3051 \
+        --tlsRootCertFiles $PEER0_ORG1_CA
 
-    echo "===================== chaincode approved from org 1 ===================== "
-
+    echo "===================== ✅ Chaincode approved from Org1 ====================="
 }
-# queryInstalled
-# approveForMyOrg1
-
-# --signature-policy "OR ('Org1MSP.member')"
-# --peerAddresses localhost:3051 --tlsRootCertFiles $PEER0_ORG1_CA --peerAddresses localhost:5051 --tlsRootCertFiles $PEER0_ORG2_CA
-# --peerAddresses peer0.org1.example.com:3051 --tlsRootCertFiles $PEER0_ORG1_CA --peerAddresses peer0.org2.example.com:5051 --tlsRootCertFiles $PEER0_ORG2_CA
-#--channel-config-policy Channel/Application/Admins
-# --signature-policy "OR ('Org1MSP.peer','Org2MSP.peer')"
 
 checkCommitReadyness() {
     setGlobalsForPeer0Org1
     peer lifecycle chaincode checkcommitreadiness \
-        --channelID $CHANNEL_NAME --name ${CC_NAME} --version ${VERSION} \
-        --sequence ${VERSION} --output json --init-required
-    echo "===================== checking commit readyness from org 1 ===================== "
+        --channelID $CHANNEL_NAME \
+        --name ${CC_NAME} \
+        --version ${VERSION} \
+        --sequence ${SEQUENCE} \
+        --init-required \
+        --output json
+
+    echo "===================== 🔎 Commit Readiness checked from Org1 ====================="
 }
+
 
 # checkCommitReadyness
 
@@ -224,6 +238,46 @@ chaincodeInvokeInit() {
 chaincodeInvoke() {
     setGlobalsForPeer0Org1
 
+    BIRTH_DATA=$(cat <<EOF
+{
+  "recordID": "REC001",
+  "child": {
+    "firstName": "Aisha",
+    "middleName": "Masoud",
+    "lastName": "Mussa",
+    "dateOfBirth": "2025-01-25",
+    "timeOfBirth": "10:45",
+    "gender": "Female",
+    "weightGrams": 4100
+  },
+  "parents": {
+    "motherFirstName": "Mariam",
+    "motherLastName": "Mussa",
+    "motherID": "IDM33345",
+    "fatherFirstName": "Masoud",
+    "fatherLastName": "Mussa",
+    "fatherID": "IDF66890"
+  },
+  "contact": {
+    "address": "334 Kigamboni",
+    "city": "Dar es Salaam",
+    "state": "Dar",
+    "postalCode": "11101",
+    "phoneNumber": "+255712445678",
+    "email": "masoud@example.com"
+  },
+  "medical": {
+    "deliveryType": "vaginal delivery",
+    "hospitalRecordNo": "HR0002",
+    "physician": "Dr. Abdul",
+    "medicalNotes": "Normal delivery,no complications"
+  }
+}
+EOF
+)
+    FLATTENED_JSON=$(echo "$BIRTH_DATA" | jq -c .)
+    FLATTENED_JSON_ESCAPED=$(printf '%s' "$FLATTENED_JSON" | sed 's/"/\\"/g')
+
     # Create Car
     peer chaincode invoke -o localhost:3050 \
         --ordererTLSHostnameOverride orderer.fabcar.example.com \
@@ -232,7 +286,8 @@ chaincodeInvoke() {
         -C $CHANNEL_NAME -n ${CC_NAME}  \
         --peerAddresses localhost:3051 --tlsRootCertFiles $PEER0_ORG1_CA \
         --peerAddresses localhost:5051 --tlsRootCertFiles $PEER0_ORG2_CA   \
-        -c '{"function": "createCar","Args":["{\"id\":\"1\",\"make\":\"Audi\",\"addedAt\":1600138309939,\"model\":\"R8\", \"color\":\"red\",\"owner\":\"pavan\"}"]}'
+        -c "{\"function\":\"CreateBirthRecord\",\"Args\":[\"$FLATTENED_JSON_ESCAPED\"]}"
+
 
 }
 
@@ -264,21 +319,20 @@ chaincodeQuery() {
 # chaincodeQuery
 
 # Run this function if you add any new dependency in chaincode
-presetup
-
-packageChaincode
-installChaincode
-queryInstalled
-approveForMyOrg1
-checkCommitReadyness
-approveForMyOrg2
-checkCommitReadyness
-approveForMyOrg3
-checkCommitReadyness
-commitChaincodeDefination
-queryCommitted
-chaincodeInvokeInit
-sleep 5
+# presetup
+# packageChaincode
+# installChaincode
+# queryInstalled
+# approveForMyOrg1
+# checkCommitReadyness
+# approveForMyOrg2
+# checkCommitReadyness
+# approveForMyOrg3
+# checkCommitReadyness
+# commitChaincodeDefination
+# queryCommitted
+# chaincodeInvokeInit
+# sleep 5
 chaincodeInvoke
-sleep 3
-chaincodeQuery
+# sleep 3
+# chaincodeQuery
